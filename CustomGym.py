@@ -36,7 +36,7 @@ class RoboEnv(gym.Env):
         # You may find it useful to create helper functions for the following
         obs = np.hstack((obs['robot0_proprio-state'],self.targetposition))
         reward = 1 / np.linalg.norm(self.targetposition - gripper_pos)
-        done = self.targetposition
+        #done = self.targetposition
         return obs, reward, done, _
 
     def reset(self):
