@@ -8,6 +8,15 @@ import argparse
 from clearml import Task
 from CustomGym import RoboEnv
 
+# Command line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("--learning_rate", type=float, default=0.0003)
+parser.add_argument("--batch_size", type=int, default=64)
+parser.add_argument("--n_steps", type=int, default=2048)
+parser.add_argument("--n_epochs", type=int, default=10)
+
+args = parser.parse_args()
+
 # Replace Pendulum-v1/YourName with your own project name (Folder/YourName, e.g. 2022-Y2B-RoboSuite/Michael)
 task = Task.init(project_name='2022-Y2B-RoboSuite/Luca', task_name='Experiment1')
 #copy these lines exactly as they are
@@ -18,15 +27,6 @@ task.execute_remotely(queue_name="default")
 
 # wandb key
 os.environ['WANDB_API_KEY'] = 'b7d45b29b644fc09c9c8535a1781c45a0985907c'
-
-# Command line arguments
-parser = argparse.ArgumentParser()
-parser.add_argument("--learning_rate", type=float, default=0.0003)
-parser.add_argument("--batch_size", type=int, default=64)
-parser.add_argument("--n_steps", type=int, default=2048)
-parser.add_argument("--n_epochs", type=int, default=10)
-
-args = parser.parse_args()
 
 # initialize wandb project
 run = wandb.init(project="RI_v1",sync_tensorboard=True, entity="hive")

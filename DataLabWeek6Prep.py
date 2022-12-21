@@ -56,20 +56,11 @@ for i in range(10):
     model.save(f"models/{run.id}/{timesteps*(i+1)}")
 
 #Test the trained model
-obs = env.reset()
-for i in range(1000):
-    action, _ = model.predict(obs,deterministic=True)
-    obs, reward, done, info = env.step(action)
-    env.render()
-    time.sleep(0.025)
-    if done:
-        env.reset()
-
-# add tensorboard logging to the model
-model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=f"runs/{run.id}")
-
-# create wandb callback
-wandb_callback = WandbCallback(model_save_freq=1000,
-                                model_save_path=f"models/{run.id}",
-                                verbose=2,
-                                )
+#obs = env.reset()
+#for i in range(1000):
+#    action, _ = model.predict(obs,deterministic=True)
+#    obs, reward, done, info = env.step(action)
+#    env.render()
+#    time.sleep(0.025)
+#    if done:
+#        env.reset()
