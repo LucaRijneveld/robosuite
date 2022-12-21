@@ -1,0 +1,125 @@
+{
+    "os": "Linux-5.15.79.1-microsoft-standard-WSL2-x86_64-with-glibc2.17",
+    "python": "3.8.13",
+    "heartbeatAt": "2022-12-21T10:11:50.483944",
+    "startedAt": "2022-12-21T10:11:49.581186",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/hive/robosuite/DataLabWeek6Prep.py",
+    "codePath": "DataLabWeek6Prep.py",
+    "git": {
+        "remote": "https://github.com/StanfordVL/robosuite.git",
+        "commit": "ae740030c915633b323f633eff83f11d07b17f4d"
+    },
+    "email": "lucarijneveld@gmail.com",
+    "root": "/home/hive/robosuite",
+    "host": "LAPTOP-DVSAOUOT",
+    "username": "hive",
+    "executable": "/home/hive/miniconda2/envs/igibson/bin/python3",
+    "cpu_count": 8,
+    "cpu_count_logical": 16,
+    "cpu_freq": {
+        "current": 3194.0060000000008,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3194.006,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "total": 250.92389297485352,
+        "used": 20.874603271484375
+    },
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+            "memory_total": 6442450944
+        }
+    ],
+    "memory": {
+        "total": 7.68585205078125
+    }
+}

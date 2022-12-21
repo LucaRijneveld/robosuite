@@ -29,7 +29,7 @@ from robosuite.wrappers import Wrapper
 
 
 # creating a robosuite environment instance
-env = suite.make(env_name="PickPlace", # try with other tasks like "Stack","Door", "PickPlace"
+env = suite.make(env_name="Stack", # try with other tasks like "Stack","Door", "PickPlace"
                 robots="Panda",   # try with other robots like "Sawyer" and "Jaco"
                 has_renderer=False,
                 has_offscreen_renderer=True,
@@ -38,11 +38,11 @@ env = suite.make(env_name="PickPlace", # try with other tasks like "Stack","Door
                 camera_segmentations = 'element', # if you want segmented images as well
                 )
 
-
-for i in range(10):
+                
+for i in range(600):
     print(i)
     obs = env.reset()
-    img = adjust_convention(obs['agentview_image'], 1)
-    plt.imsave("//wsl.localhost/Ubuntu/home/hive/robosuite\Data" + "{}.png".format(i), img)
+    img = adjust_convention(obs['agentview_image'], 1) #This flips the image using Igibson which is part of Robosuite I think??? IDK! But you can probably just use Numpy to do this part... Don't spent 4 hours trying to install igibson... it's not worth it... trust me.
+    plt.imsave("/home/hive/robosuite/Blocks/{}.jpg".format(i), img)
 
 # %%
