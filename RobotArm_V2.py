@@ -22,17 +22,17 @@ obs = env.reset()
 print(obs)
 
 # PID gains X
-x_kp = 1
+x_kp = 1.5
 x_ki = 0
 x_kd = 0
 
 # PID gains Y
-y_kp = 1
+y_kp = 1.3
 y_ki = 0
 y_kd = 0
 
 # PID gains Z
-z_kp = 1
+z_kp = 1.5
 z_ki = 0
 z_kd = 0
 
@@ -124,43 +124,21 @@ for step in range(100):
         obs = delay(30,action,env)
         #Advance to the next stage
         stage = 2
+    
 
        # Stage 2: Lift
       if stage == 2:
-        #Change the z setpoint or desired z value to some height above the table (>0.8)
-        z = [0, 0, 1.1]
+        z = [gripper_pos[0], gripper_pos[1], 1.1]
+        action = [0, 0, 1, 0, 0, 0, 0.1]
+        h = gripper_pos - z
+        print(h)
 
-        h = z - gripper_pos
-        #calculate the error
-        error_x = np.subtract(obs['robot0_eef_pos'][0], z[0])
-        error_y = np.subtract(obs['robot0_eef_pos'][1], z[1])
-        error_z = np.subtract(obs['robot0_eef_pos'][2], z[2])
-        error = [error_x, error_y, error_z]
-        mean_error = np.mean(np.abs(error))
+        if all(item > -0.020  and item < 0.020  for item in h):
+          stage = 3
+          print("done")
 
-        #calculate the integral error by adding the error to the integral (past) error
-        integral_error_x += error_x
-        integral_error_y += error_y
-        integral_error_z += error_z
-
-        #calculate the derivative error calculating the error change over time (gradient)
-        derivative_error_x = (error_x - previous_error_x)/dt
-        derivative_error_y = (error_y - previous_error_y)/dt
-        derivative_error_z = (error_z - previous_error_z)/dt
-
-        previous_error = [previous_error_x, previous_error_y, previous_error_z]
-        mean_previous_error = np.mean(np.abs(previous_error))
-        print('prev_error_v1: ', previous_error)
-
-
-        #calculate the action by multiplying the errors by the PID gains and summing them
-        action_x = -np.clip(error_x * x_kp + integral_error_x * x_ki + derivative_error_x * x_kd, -5, 5)
-        action_y = -np.clip(error_y * y_kp + integral_error_y * y_ki + derivative_error_y * y_kd, -5, 5)
-        action_z = -np.clip(error_z * z_kp + integral_error_z * z_ki + derivative_error_z * z_kd, -5, 5)
-
-        if all(item == 0 for item in h):
-          print("HIIII")
-          done = True
+        if stage == 3:
+          cubeB_pos = obs["cubeB_pos"]
 
 
       # Execute the action and get the next state, reward, and whether the episode is done
