@@ -22,19 +22,19 @@ obs = env.reset()
 print(obs)
 
 # PID gains X
-x_kp = 1.5
-x_ki = 0
-x_kd = 0
+x_kp = 10
+x_ki = 0.01
+x_kd = 3
 
 # PID gains Y
-y_kp = 1.3
-y_ki = 0
-y_kd = 0
+y_kp = 10
+y_ki = 0.01
+y_kd = 3
 
 # PID gains Z
-z_kp = 1.5
-z_ki = 0
-z_kd = 0
+z_kp = 10
+z_ki = 0.01
+z_kd = 3
 
 # PID variables X
 integral_error_x = 0
@@ -51,7 +51,8 @@ previous_error_z = 0
 i = 0
 stage = 0
 done = False
-SetPoint = [0, 0, 0]
+cubeA_pos = obs['cubeA_pos']
+SetPoint = cubeA_pos  
 
 # loop through the simulation
 for step in range(100):
@@ -61,8 +62,6 @@ for step in range(100):
       
       # Retrive all relevant info from simulation
       gripper_pos = obs['robot0_eef_pos']
-      cubeA_pos = obs['cubeA_pos']
-      SetPoint = cubeA_pos  
       distance = SetPoint - gripper_pos
 
       #calculate the error
@@ -97,7 +96,7 @@ for step in range(100):
         action = [action_x, action_y, action_z, 0, 0, 0, -1]
         
         ##if the mean_error does not decreas significantly, move to next stage
-        if np.mean(np.abs(distance))<0.008:
+        if np.mean(np.abs(distance))<0.003:
           stage = 1
 
       #update the previous error
@@ -134,7 +133,7 @@ for step in range(100):
         h = gripper_pos - z
         print(h)
 
-        if all(item > -0.020  and item < 0.020  for item in h):
+        if all(item > -0.005  and item < 0.005  for item in h):
           stage = 3
       
       # Stage 3: Move gripper to cubeB
@@ -142,23 +141,20 @@ for step in range(100):
         #Get cubeB_pos and make it SetPoint. Then edit the z to be a bit above the cube
         cubeB_pos = obs['cubeB_pos']
         #gripper_pos = obs['robot0_eef_pos']
-        SetPoint = [cubeB_pos[0], cubeB_pos[1], gripper_pos[2]]
+        SetPoint = [cubeB_pos[0], cubeB_pos[1], cubeB_pos[2] + 0.06]
         distance = SetPoint - gripper_pos
-
-        #Gripper to cube
-        if stage == 3:
-          action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
           
-          ##if the mean_error does not decreas significantly, move to next stage
-          if np.mean(np.abs(distance))<0.010:
-            stage = 4
+        ##if the mean_error does not decreas significantly, move to next stage
+        if np.mean(np.abs(distance))<0.004:
+          stage = 4
 
         #update the previous error
         previous_error_x = error_x
         previous_error_y = error_y
         previous_error_z = error_z
         previous_error = [previous_error_x, previous_error_y, previous_error_z]
-        
+
         #Stage 4: let CubeA go
         if stage == 4:
           action = [0,0,0,0,0,0, -0.3]
@@ -167,14 +163,14 @@ for step in range(100):
           #Advance to the next stage
           stage = 5
         
-        #Stage 5: Move arm up and done
+        #Stage 6: Move arm up and done
         if stage == 5:
           z = [gripper_pos[0], gripper_pos[1], 1.1]
-          action = [0, 0, 1, 0, 0, 0, 0.1]
+          action = [0, 0, 0.1, 0, 0, 0, 0.1]
           h = gripper_pos - z
           print(h)
 
-          if all(item > -0.020  and item < 0.020  for item in h):
+          if all(item > -0.005  and item < 0.005  for item in h):
             done = True
 
       # Execute the action and get the next state, reward, and whether the episode is done
