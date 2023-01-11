@@ -51,7 +51,7 @@ previous_error_z = 0
 i = 0
 stage = 0
 done = False
-
+SetPoint = [0, 0, 0]
 
 # loop through the simulation
 for step in range(100):
@@ -61,13 +61,14 @@ for step in range(100):
       
       # Retrive all relevant info from simulation
       gripper_pos = obs['robot0_eef_pos']
-      cubeA_pos = obs['cubeA_pos']  
-      distance = cubeA_pos - gripper_pos
+      cubeA_pos = obs['cubeA_pos']
+      SetPoint = cubeA_pos  
+      distance = SetPoint - gripper_pos
 
       #calculate the error
-      error_x = np.subtract(obs['robot0_eef_pos'][0], obs['cubeA_pos'][0])
-      error_y = np.subtract(obs['robot0_eef_pos'][1], obs['cubeA_pos'][1])
-      error_z = np.subtract(obs['robot0_eef_pos'][2], obs['cubeA_pos'][2])
+      error_x = np.subtract(obs['robot0_eef_pos'][0], SetPoint[0])
+      error_y = np.subtract(obs['robot0_eef_pos'][1], SetPoint[1])
+      error_z = np.subtract(obs['robot0_eef_pos'][2], SetPoint[2])
       error = [error_x, error_y, error_z]
       mean_error = np.mean(np.abs(error))
 
@@ -137,46 +138,19 @@ for step in range(100):
           stage = 3
       
       # Stage 3: Move gripper to cubeB
-      while stage == 3:
-
-        # Retrive all relevant info from simulation
-        gripper_pos = obs['robot0_eef_pos']
-        cubeA_pos = obs['cubeA_pos']  
+      if stage == 3:
+        #Get cubeB_pos and make it SetPoint. Then edit the z to be a bit above the cube
         cubeB_pos = obs['cubeB_pos']
-        d = cubeB_pos - gripper_pos
-
-        #calculate the error
-        error_x = np.subtract(obs['robot0_eef_pos'][0], obs['cubeB_pos'][0])
-        error_y = np.subtract(obs['robot0_eef_pos'][1], obs['cubeB_pos'][1])
-        error_z = np.subtract(obs['robot0_eef_pos'][2], obs['cubeB_pos'][2])
-        error = [error_x, error_y, error_z]
-        mean_error = np.mean(np.abs(error))
-
-        #calculate the integral error by adding the error to the integral (past) error
-        integral_error_x += error_x
-        integral_error_y += error_y
-        integral_error_z += error_z
-
-        #calculate the derivative error calculating the error change over time (gradient)
-        derivative_error_x = (error_x - previous_error_x)/dt
-        derivative_error_y = (error_y - previous_error_y)/dt
-        derivative_error_z = (error_z - previous_error_z)/dt
-
-        previous_error = [previous_error_x, previous_error_y, previous_error_z]
-        mean_previous_error = np.mean(np.abs(previous_error))
-
-
-        #calculate the action by multiplying the errors by the PID gains and summing them
-        action_x = -np.clip(error_x * x_kp + integral_error_x * x_ki + derivative_error_x * x_kd, -5, 5)
-        action_y = -np.clip(error_y * y_kp + integral_error_y * y_ki + derivative_error_y * y_kd, -5, 5)
-        action_z = -np.clip(error_z * z_kp + integral_error_z * z_ki + derivative_error_z * z_kd, -5, 5)
+        #gripper_pos = obs['robot0_eef_pos']
+        SetPoint = [cubeB_pos[0], cubeB_pos[1], gripper_pos[2]]
+        distance = SetPoint - gripper_pos
 
         #Gripper to cube
         if stage == 3:
-          action = [action_x, action_y, action_z, 0, 0, 0, 0]
+          action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
           
           ##if the mean_error does not decreas significantly, move to next stage
-          if np.mean(np.abs(d))<0.010:
+          if np.mean(np.abs(distance))<0.010:
             stage = 4
 
         #update the previous error
@@ -184,12 +158,6 @@ for step in range(100):
         previous_error_y = error_y
         previous_error_z = error_z
         previous_error = [previous_error_x, previous_error_y, previous_error_z]
-
-        def delay(timesteps,action,env):
-          for i in range(timesteps):
-            obs, _, _, _ = env.step(action)
-            env.render() #if you are using the remote environment you will need to comment this out, or use the remote render code
-          return obs
         
         #Stage 4: let CubeA go
         if stage == 4:
