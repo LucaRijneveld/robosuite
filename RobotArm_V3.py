@@ -35,17 +35,17 @@ print(obs)
 
 #PID CONTROLLER
 # PID gains X
-x_kp = 12
+x_kp = 10
 x_ki = 0.01
 x_kd = 3
 
 # PID gains Y
-y_kp = 12
+y_kp = 10
 y_ki = 0.01
 y_kd = 3
 
 # PID gains Z
-z_kp = 12
+z_kp = 10
 z_ki = 0.01
 z_kd = 3
 
@@ -71,6 +71,8 @@ yaw_kd = 0
 integral_error_yaw = 0
 previous_error_yaw = 0
 
+previous_distance = 0
+
 i = 0
 stage = 0
 done = False
@@ -78,6 +80,8 @@ Cereal_pos = obs['Cereal_pos']
 SetPoint = [Cereal_pos[0], Cereal_pos[1], 1.1]
 Cereal_quat = obs['Cereal_quat']
 SetQuat = Cereal_quat
+gripper_pos_default = np.array([-0.04378427, -0.08483982,  1.00846165])
+gripper_quat_default = np.array([ 0.997486  ,  0.02507683,  0.06619741, -0.00327562])
 
 # loop through the simulation
 for step in range(1000):
@@ -131,6 +135,7 @@ for step in range(1000):
       action_y = -np.clip(error_y * y_kp + integral_error_y * y_ki + derivative_error_y * y_kd, -5, 5)
       action_z = -np.clip(error_z * z_kp + integral_error_z * z_ki + derivative_error_z * z_kd, -5, 5)
 
+#This Section will be Gripper to Cereal Box to Bin
       #Stage 0: Gripper YAW
       if stage == 0:
         action = [0, 0, 0, 0, 0, action_yaw, 0]
@@ -150,14 +155,16 @@ for step in range(1000):
         if np.mean(np.abs(distance))<0.003:
           stage = 2
 
+      #Stage 2: Go to Cereal
       if stage == 2:
-        SetPoint = [Cereal_pos[0], Cereal_pos[1], Cereal_pos[2]+ 0.05]
+        SetPoint = [Cereal_pos[0], Cereal_pos[1], Cereal_pos[2]+ 0.04]
         distance = SetPoint - gripper_pos
         action = [action_x, action_y, action_z, 0, 0, 0, 0]
 
-        if np.mean(np.abs(distance))<0.0065:
+        if np.mean(np.abs(distance))<0.010:
           stage = 3
 
+      previous_distance = distance
       previous_error_x = error_x
       previous_error_y = error_y
       previous_error_z = error_z
@@ -173,6 +180,7 @@ for step in range(1000):
           env.render() #if you are using the remote environment you will need to comment this out, or use the remote render code
         return obs
 
+        #Stage 3: Grip
       if stage == 3:
         action = [0,0,0,0,0,0,0.3]
         #Using a helper function to send the gripping action to the environment for 30 time steps
@@ -180,63 +188,87 @@ for step in range(1000):
         #Advance to the next stage
         stage = 4
     
-       # Stage 4: Lift
+      # Stage 4: Lift
       if stage == 4:
-        SetPoint = [gripper_pos[0], gripper_pos[1], 1.5]
+        SetPoint = [gripper_pos[0], gripper_pos[1], 1.25]
         action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
         distance = SetPoint - gripper_pos
 
-        if np.mean(np.abs(distance))<0.005:
+        if np.mean(np.abs(distance))<0.008:
           stage = 5
       
-      # Stage 5: Move gripper to Cereal Bin
+      #Stage 5: Reset Arm
       if stage == 5:
-        SetPoint = [Cereal_bin[0], Cereal_bin[1], 1.1]
-        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
-        distance = SetPoint - gripper_pos
-
-        if np.mean(np.abs(distance))<0.015:
-          stage = 6
-      
-      #Stage 6: Go down to the bin
-      if stage == 6:
-        SetPoint = [Cereal_bin[0], Cereal_bin[1], Cereal_bin[2]]
-        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
-        distance = SetPoint - gripper_pos
-
-        if np.mean(np.abs(distance))<0.0065:
-          stage = 7
-      
-      #Stage 7: Drop box, Move up again and change YAW to match Milk
-      if stage == 7:
-        Milk_quat = obs['Milk_quat']
-        gripper_quat = obs['robot0_eef_quat']
-        SetPoint = [Cereal_bin[0], Cereal_bin[1], 1.1]
-        SetQuat = Milk_quat
-        action = [action_x, action_y, action_z, 0, 0, action_yaw, -0.5]
+        SetPoint = gripper_pos_default
+        SetQuat = gripper_quat_default
+        action = [action_x, action_y, 0, 0, 0, action_yaw, 0.1]
         distance = SetPoint - gripper_pos
         diff = Set_yaw - robot_yaw
 
-        if np.mean(np.abs(distance)) and np.mean(np.abs(diff))<0.003:
-          stage = 8
+        if np.mean(np.abs(distance))<0.10 and np.mean(np.abs(diff))<0.05:
+          stage = 6
       
-      #Stage 8: Move to be above the Milk
+      
+      # Stage 6: Move gripper to Cereal Bin
+      if stage == 6:
+        SetPoint = [Cereal_bin[0], Cereal_bin[1], 1.1]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.025:
+          stage = 7
+      
+      #Stage 7: Go down to the bin
+      if stage == 7:
+        SetPoint = [Cereal_bin[0], Cereal_bin[1], Cereal_bin[2]]
+        action = [action_x, action_y, action_z, 0, 0, 0, 1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.012:
+          stage = 8
+
+      #Stage 8: Reset Arm
       if stage == 8:
+        SetPoint = gripper_pos_default
+        SetQuat = gripper_quat_default
+        action = [action_x, action_y, action_z, 0, 0, action_yaw, 0.1]
+        distance = SetPoint - gripper_pos
+        diff = Set_yaw - robot_yaw
+
+        if np.mean(np.abs(distance))<0.10 and np.mean(np.abs(diff))<0.05:
+          stage = 9
+
+####################################################################################################
+      #Stage 8: Drop box, Move up again and change YAW to match Milk
+      #if stage == 8:
+        #Milk_quat = obs['Milk_quat']
+        #gripper_quat = obs['robot0_eef_quat']
+        #SetPoint = [Cereal_bin[0], Cereal_bin[1], 1.1]
+        #SetQuat = Milk_quat
+        #action = [action_x, action_y, action_z, 0, 0, action_yaw, -1]
+        #distance = SetPoint - gripper_pos
+        #diff = Set_yaw - robot_yaw
+
+        #if np.mean(np.abs(distance)) and np.mean(np.abs(diff))<0.005:
+         # stage = 9
+      
+      #Stage 9: Move to be above the Milk
+      if stage == 9:
         Milk_pos = obs['Milk_pos']
-        SetPoint = [Milk_pos[0], Milk_pos[1], 1.1]
-        action = [action_x, action_y, action_z, 0, 0, 0, 0]
+        SetPoint = [Milk_pos[0], Milk_pos[1], 1.25]
+        action = [action_x, action_y, action_z, 0, 0, 0, -0.5]
         distance = SetPoint - gripper_pos
 
         if np.mean(np.abs(distance))>0.003:
-          stage = 9
+          stage = 10
 
-      #Stage 9: Move down to Milk
-      if stage == 9:
-        SetPoint = [Milk_pos[0], Milk_pos[1], Milk_pos[2]+ 0.05]
+      #Stage 10: Move down to Milk
+      if stage == 10:
+        SetPoint = [Milk_pos[0], Milk_pos[1], Milk_pos[2]+ 0.07]
         distance = SetPoint - gripper_pos
-        action = [action_x, action_y, action_z, 0, 0, 0, 0]
+        action = [action_x, action_y, action_z, 0, 0, 0, -1]
 
-        if np.mean(np.abs(distance))<0.006:
+        if np.mean(np.abs(distance))<0.003:
           stage = 10
       
       #Stage 10: Grap Milk
@@ -249,11 +281,11 @@ for step in range(1000):
 
       #Stage 11: Lift
       if stage == 11:
-        SetPoint = [gripper_pos[0], gripper_pos[1], 1.5]
+        SetPoint = [gripper_pos[0], gripper_pos[1], 1.25]
         action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
         distance = SetPoint - gripper_pos
 
-        if np.mean(np.abs(distance))<0.005:
+        if np.mean(np.abs(distance))<0.003:
           stage = 12
       
       # Stage 12: Move gripper to Milk Bin
@@ -262,7 +294,7 @@ for step in range(1000):
         action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
         distance = SetPoint - gripper_pos
 
-        if np.mean(np.abs(distance))<0.005:
+        if np.mean(np.abs(distance))<0.020:
           stage = 13
       
       #Stage 13: Go down to the bin
@@ -271,10 +303,10 @@ for step in range(1000):
         action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
         distance = SetPoint - gripper_pos
 
-        if np.mean(np.abs(distance))<0.005:
+        if np.mean(np.abs(distance))<0.012:
           stage = 14
       
-      #Stage 14: Drop box, Move up again and change YAW to match Milk
+      #Stage 14: Drop box, Move up again and change YAW to match Can
       if stage == 14:
         Can_quat = obs['Can_quat']
         gripper_quat = obs['robot0_eef_quat']
@@ -284,8 +316,71 @@ for step in range(1000):
         distance = SetPoint - gripper_pos
         diff = Set_yaw - robot_yaw
 
-        if np.mean(np.abs(distance)) and np.mean(np.abs(diff))<0.003:
+        if np.mean(np.abs(distance))<0.010 and np.mean(np.abs(diff))<0.004:
           stage = 15    
+      
+      #Stage 15: Move to Can
+      if stage == 15:
+        Can_pos = obs['Can_pos']
+        SetPoint = [Can_pos[0], Can_pos[1], Can_pos[2] + 1.2]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))>0.003:
+          stage = 16
+
+      #Stage 16: Move down to Can
+      if stage == 16:
+        SetPoint = [Can_pos[0], Can_pos[1], Can_pos[2]+ 0.02]
+        distance = SetPoint - gripper_pos
+        action = [action_x, action_y, action_z, 0, 0, 0, 0]
+
+        if np.mean(np.abs(distance))<0.003:
+          stage = 17
+      
+      #Stage 10: Grap Can
+      if stage == 17:
+        action = [0,0,0,0,0,0,0.3]
+        #Using a helper function to send the gripping action to the environment for 30 time steps
+        obs = delay(30,action,env)
+        #Advance to the next stage
+        stage = 18
+
+      #Stage 11: Lift
+      if stage == 18:
+        SetPoint = [gripper_pos[0], gripper_pos[1], 1.25]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.003:
+          stage = 19
+      
+      # Stage 19: Move gripper to Can Bin
+      if stage == 19:
+        SetPoint = [Can_bin[0], Can_bin[1], 1.1]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.020:
+          stage = 20
+      
+      #Stage 20: Go down to the bin
+      if stage == 20:
+        SetPoint = [Can_bin[0], Can_bin[1], Can_bin[2]]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.012:
+          stage = 21
+      
+      #Stage 21: Drop box, Move up again, Done
+      if stage == 21:
+        SetPoint = [Can_bin[0], Can_bin[1], 1.1]
+        action = [action_x, action_y, action_z, 0, 0, action_yaw, -0.5]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))< 0.003:
+          done = True
 
     # Execute the action and get the next state, reward, and whether the episode is done
       obs, reward, done, _ = env.step(action)
