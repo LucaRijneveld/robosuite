@@ -8,9 +8,6 @@ from tempfile import TemporaryFile
 import numpy as np
 
 # Run once outsite the loop to define some variables
-
- 
-
 # Create the environment
 env = suite.make(
     "PickPlace",
