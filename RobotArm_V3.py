@@ -71,20 +71,34 @@ yaw_kd = 0
 integral_error_yaw = 0
 previous_error_yaw = 0
 
-previous_distance = 0
+#For setting the robot back to default
+integral_error_default_0 = 0
+previous_error_default_0 = 0
+
+integral_error_default_1 = 0
+previous_error_default_1 = 0
 
 i = 0
 stage = 0
 done = False
+
+#SetPoint & SetQuat
 Cereal_pos = obs['Cereal_pos']
 SetPoint = [Cereal_pos[0], Cereal_pos[1], 1.1]
 Cereal_quat = obs['Cereal_quat']
 SetQuat = Cereal_quat
+
+#Get some of the robots default values for when we reset it to its default stage
 gripper_pos_default = np.array([-0.04378427, -0.08483982,  1.00846165])
 gripper_quat_default = np.array([ 0.997486  ,  0.02507683,  0.06619741, -0.00327562])
 
+robot_default = np.array([quat_to_rpy(gripper_quat_default)[0], quat_to_rpy(gripper_quat_default)[1]])
+robot_default[0] += 180    
+if robot_default[0] > 180:
+  robot_default[0] -= 360
+
 # loop through the simulation
-for step in range(1000):
+for step in range(10000):
     while not done:
       i = i + 1
       print("loop: ", i)
@@ -98,15 +112,39 @@ for step in range(1000):
       Milk_bin = np.array([0.0, 0.18, 1])
       Can_bin = np.array([0.16, 0.18, 1])
         
+      #yaw values
       robot_yaw = quat_to_rpy(gripper_quat)[2]
       Set_yaw = quat_to_rpy(SetQuat)[2]
 
-      diff = Set_yaw - robot_yaw
+      #default values
+      #Current Robot Position
+      robot = np.array([quat_to_rpy(gripper_quat)[0], quat_to_rpy(gripper_quat)[1]])
+      robot[0] += 180    
+      if robot[0] > 180:
+        robot[0] -= 360
+      SetDefault = robot_default
 
+      diff = Set_yaw - robot_yaw
+      default = SetDefault - robot
+
+      #action for YAW
       error_yaw = np.subtract(robot_yaw, Set_yaw)
       integral_error_yaw += error_yaw
       derivative_error_yaw = (error_yaw - previous_error_yaw)/dt
       action_yaw = -np.clip(error_yaw * yaw_kp + integral_error_yaw * yaw_ki + derivative_error_yaw * yaw_kd, -5, 5)
+
+      #action for default
+      error_default_0 = np.subtract(robot[0], SetDefault[0])
+      error_default_1 = np.subtract(robot[1], SetDefault[1])
+
+      integral_error_default_0 += error_default_0
+      integral_error_default_1 += error_default_1
+
+      derivative_error_default_0 = (error_default_0 - previous_error_default_0)/dt
+      derivative_error_default_1 = (error_default_1 - previous_error_default_1)/dt
+
+      action_default_0 = -np.clip(error_default_0 * yaw_kp + integral_error_default_0 * yaw_ki + derivative_error_default_0 * yaw_kd, -5, 5)
+      action_default_1 = -np.clip(error_default_1 * yaw_kp + integral_error_default_1 * yaw_ki + derivative_error_default_1 * yaw_kd, -5, 5)
 
       #calculate the error
       error_x = np.subtract(obs['robot0_eef_pos'][0], SetPoint[0])
@@ -135,6 +173,20 @@ for step in range(1000):
       action_y = -np.clip(error_y * y_kp + integral_error_y * y_ki + derivative_error_y * y_kd, -5, 5)
       action_z = -np.clip(error_z * z_kp + integral_error_z * z_ki + derivative_error_z * z_kd, -5, 5)
 
+      #update the previous error
+      previous_error_yaw = error_yaw
+      previous_error_default_0 = error_default_0
+      previous_error_default_1 = error_default_1
+
+      previous_error_x = error_x
+      previous_error_y = error_y
+      previous_error_z = error_z
+      previous_error = [previous_error_x, previous_error_y, previous_error_z]
+
+      print("distance: ", np.mean(np.abs(distance)))
+      print('stage: ', stage)
+      print("###########################################################")
+
 #This Section will be Gripper to Cereal Box to Bin
       #Stage 0: Gripper YAW
       if stage == 0:
@@ -143,9 +195,6 @@ for step in range(1000):
         #if diff does not decreas significantly, move to next stage
         if np.mean(np.abs(diff))<0.003:
           stage = 1
-      
-      #update the previous error
-      previous_error_yaw = error_yaw
 
       #Stage 1: Gripper to Cereal
       if stage == 1:
@@ -157,22 +206,12 @@ for step in range(1000):
 
       #Stage 2: Go to Cereal
       if stage == 2:
-        SetPoint = [Cereal_pos[0], Cereal_pos[1], Cereal_pos[2]+ 0.04]
+        SetPoint = [Cereal_pos[0], Cereal_pos[1], Cereal_pos[2]+ 0.03]
         distance = SetPoint - gripper_pos
         action = [action_x, action_y, action_z, 0, 0, 0, 0]
 
-        if np.mean(np.abs(distance))<0.010:
+        if np.mean(np.abs(distance))<0.012:
           stage = 3
-
-      previous_distance = distance
-      previous_error_x = error_x
-      previous_error_y = error_y
-      previous_error_z = error_z
-      previous_error = [previous_error_x, previous_error_y, previous_error_z]
-
-      print("distance: ", np.mean(np.abs(distance)))
-      print('stage: ', stage)
-      print("###########################################################")
 
       def delay(timesteps,action,env):
         for i in range(timesteps):
@@ -201,11 +240,13 @@ for step in range(1000):
       if stage == 5:
         SetPoint = gripper_pos_default
         SetQuat = gripper_quat_default
-        action = [action_x, action_y, 0, 0, 0, action_yaw, 0.1]
+        SetDefault = robot_default
+        action = [action_x, action_y, 0, action_default_0, action_default_1, action_yaw, 0]
         distance = SetPoint - gripper_pos
         diff = Set_yaw - robot_yaw
+        default = SetDefault - robot
 
-        if np.mean(np.abs(distance))<0.10 and np.mean(np.abs(diff))<0.05:
+        if np.mean(np.abs(distance))<0.12 and np.mean(np.abs(diff))<0.05 and np.mean(np.abs(default))< 0.05:
           stage = 6
       
       
@@ -227,7 +268,7 @@ for step in range(1000):
         if np.mean(np.abs(distance))<0.012:
           stage = 8
 
-      #Stage 8: Let Go of Box
+      #Stage 8: Let Go of Cereal
       if stage == 8:
         action = [0, 0, 0, 0, 0, 0, -1]
         obs = delay(30,action,env)
@@ -237,11 +278,13 @@ for step in range(1000):
       if stage == 9:
         SetPoint = gripper_pos_default
         SetQuat = gripper_quat_default
-        action = [action_x, action_y, action_z, 0, 0, action_yaw, 0]
+        SetDefault = robot_default
+        action = [action_x, action_y, 0, action_default_0, action_default_1, action_yaw, 0]
         distance = SetPoint - gripper_pos
         diff = Set_yaw - robot_yaw
+        default = SetDefault - robot
 
-        if np.mean(np.abs(distance))<0.10 and np.mean(np.abs(diff))<0.05:
+        if np.mean(np.abs(distance))<0.10 and np.mean(np.abs(diff))<0.05 and np.mean(np.abs(default))< 0.05:
           stage = 10
 
 #From here we are going to try and make the Gripper move from default to Milk to Milk Bin
@@ -260,12 +303,12 @@ for step in range(1000):
       #Stage 11: Gripper to Milk
       if stage == 11:
         Milk_pos = obs['Milk_pos']
-        SetPoint = [Milk_pos[0], Milk_pos[1], Milk_pos[2], 1.25]
+        SetPoint = [Milk_pos[0], Milk_pos[1], 1.1]
         distance = SetPoint - gripper_pos
         action = [action_x, action_y, action_z, 0, 0, 0, 0]
         
         ##if the mean_error does not decreas significantly, move to next stage
-        if np.mean(np.abs(distance))<0.003:
+        if np.mean(np.abs(distance))<0.010:
           stage = 12
 
       #Stage 12: Go to Milk
@@ -298,11 +341,13 @@ for step in range(1000):
       if stage == 15:
         SetPoint = gripper_pos_default
         SetQuat = gripper_quat_default
-        action = [action_x, action_y, 0, 0, 0, action_yaw, 0.1]
+        SetDefault = robot_default
+        action = [action_x, action_y, 0, action_default_0, action_default_1, action_yaw, 0]
         distance = SetPoint - gripper_pos
         diff = Set_yaw - robot_yaw
+        default = SetDefault - robot
 
-        if np.mean(np.abs(distance))<0.10 and np.mean(np.abs(diff))<0.05:
+        if np.mean(np.abs(distance))<0.12 and np.mean(np.abs(diff))<0.05 and np.mean(np.abs(default))< 0.05:
           stage = 16
       
       
@@ -324,16 +369,124 @@ for step in range(1000):
         if np.mean(np.abs(distance))<0.012:
           stage = 18
 
-      #Stage 18: Reset Arm
+      #Stage 18: Let Go of Milk
       if stage == 18:
+        action = [0, 0, 0, 0, 0, 0, -1]
+        obs = delay(30,action,env)
+        stage = 19
+
+      #Stage 19: Reset Arm
+      if stage == 19:
         SetPoint = gripper_pos_default
         SetQuat = gripper_quat_default
-        action = [action_x, action_y, action_z, 0, 0, action_yaw, 0.1]
+        SetDefault = robot_default
+        action = [action_x, action_y, 0, action_default_0, action_default_1, action_yaw, 0]
         distance = SetPoint - gripper_pos
         diff = Set_yaw - robot_yaw
+        default = SetDefault - robot
 
-        if np.mean(np.abs(distance))<0.10 and np.mean(np.abs(diff))<0.05:
-          stage = 19
+        if np.mean(np.abs(distance))<0.12 and np.mean(np.abs(diff))<0.05 and np.mean(np.abs(default))< 0.05:
+          stage = 21
+
+#From this point we will be doing the Can
+      #Stage 20: Gripper YAW (WE SKIP THIS STAGE)
+      if stage == 20:
+        Can_quat = obs['Can_quat']
+        SetQuat = Can_quat
+        action = [0, 0, 0, 0, 0, action_yaw, 0]
+        diff = Set_yaw - robot_yaw
+
+        #if diff does not decreas significantly, move to next stage
+        if np.mean(np.abs(diff))<0.005:
+          stage = 21
+      
+      #Stage 21: Gripper to Can
+      if stage == 21:
+        Can_pos = obs['Can_pos']
+        SetPoint = [Can_pos[0], Can_pos[1], 1.1]
+        distance = SetPoint - gripper_pos
+        action = [action_x, action_y, action_z, 0, 0, 0, 0]
+        
+        ##if the mean_error does not decreas significantly, move to next stage
+        if np.mean(np.abs(distance))<0.010:
+          stage = 22
+
+      #Stage 22: Go to Can
+      if stage == 22:
+        SetPoint = [Can_pos[0], Can_pos[1], Can_pos[2]]
+        distance = SetPoint - gripper_pos
+        action = [action_x, action_y, action_z, 0, 0, 0, 0]
+
+        if np.mean(np.abs(distance))<0.010:
+          stage = 23
+      
+      #Stage 23: Grip
+      if stage == 23:
+        action = [0,0,0,0,0,0,0.3]
+        #Using a helper function to send the gripping action to the environment for 30 time steps
+        obs = delay(30,action,env)
+        #Advance to the next stage
+        stage = 24
+    
+      # Stage 24: Lift
+      if stage == 24:
+        SetPoint = [gripper_pos[0], gripper_pos[1], 1.25]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.008:
+          stage = 25
+      
+      #Stage 25: Reset Arm
+      if stage == 25:
+        SetPoint = gripper_pos_default
+        SetQuat = gripper_quat_default
+        SetDefault = robot_default
+        action = [action_x, action_y, 0, action_default_0, action_default_1, action_yaw, 0]
+        distance = SetPoint - gripper_pos
+        diff = Set_yaw - robot_yaw
+        default = SetDefault - robot
+
+        if np.mean(np.abs(distance))<0.12 and np.mean(np.abs(diff))<0.05 and np.mean(np.abs(default))< 0.05:
+          stage = 26
+      
+      
+      # Stage 26: Move gripper to Can Bin
+      if stage == 26:
+        SetPoint = [Can_bin[0], Can_bin[1], 1.1]
+        action = [action_x, action_y, action_z, 0, 0, 0, 0.1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.025:
+          stage = 27
+      
+      #Stage 27: Go down to the bin
+      if stage == 27:
+        SetPoint = [Can_bin[0], Can_bin[1], Can_bin[2]]
+        action = [action_x, action_y, action_z, 0, 0, 0, 1]
+        distance = SetPoint - gripper_pos
+
+        if np.mean(np.abs(distance))<0.012:
+          stage = 28
+
+      #Stage 28: Let Go of Can
+      if stage == 28:
+        action = [0, 0, 0, 0, 0, 0, -1]
+        obs = delay(30,action,env)
+        stage = 29
+
+      #Stage 29: Reset Arm
+      if stage == 29:
+        SetPoint = gripper_pos_default
+        SetQuat = gripper_quat_default
+        SetDefault = robot_default
+        action = [action_x, action_y, 0, action_default_0, action_default_1, action_yaw, 0]
+        distance = SetPoint - gripper_pos
+        diff = Set_yaw - robot_yaw
+        default = SetDefault - robot
+
+        if np.mean(np.abs(distance))<0.12 and np.mean(np.abs(diff))<0.05 and np.mean(np.abs(default))< 0.05:
+          done = True
 
     # Execute the action and get the next state, reward, and whether the episode is done
       obs, reward, done, _ = env.step(action)
