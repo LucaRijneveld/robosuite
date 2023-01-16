@@ -11,11 +11,11 @@ model = Predictor()
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-data = np.load('/home/howl/robosuite/robosuite-1/vision_data_10.npz')
-print(data)
-input_data = data[0]
-target = data[1]
-input_image = data[2]
+np.load('/home/howl/robosuite/robosuite-1/vision_data_10.npz')
+#print(data)
+#input_data = data['a']
+#target = data['b']
+#input_image = data['c']
 batch = 32
 
 for i in range(500):

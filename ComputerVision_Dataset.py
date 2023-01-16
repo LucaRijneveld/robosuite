@@ -241,4 +241,6 @@ for i in range(300):
     if i % 10 == 0:
         print(i++10)
 
-np.savez("vision_data_10.npz", data, labels, images)
+np.savez("vision_data_10.npz", data=data, labels=labels, images=images)
+data = np.load('vision_data_10.npz')
+print(data['data'])
