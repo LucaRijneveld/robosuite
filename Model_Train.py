@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
+from numpy import load
 from CoordinateModel import Predictor
 
 running_loss = 0
@@ -11,20 +12,20 @@ model = Predictor()
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
-np.load('/home/howl/robosuite/robosuite-1/vision_data_10.npz')
-#print(data)
-#input_data = data['a']
-#target = data['b']
-#input_image = data['c']
+npzfile = np.load('/home/howl/robosuite/robosuite-1/vision_data_10.npz')
+data = npzfile['data']
+labels = npzfile['labels']
+images = npzfile['images']
+
 batch = 32
 
 for i in range(500):
     
 
     optimizer.zero_grad()
-    output = model(input)
+    output = model(images, data)
 
-    loss = criterion(output, target)
+    loss = criterion(output, labels)
 
     loss.backward()
     optimizer.step()
