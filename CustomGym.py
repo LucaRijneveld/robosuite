@@ -52,8 +52,7 @@ class RoboEnv(gym.Env):
     def render(self, mode='human'):
         # Render the environment to the screen
         # Call the environment render function
-        obs = self.env.render(mode)
-        return obs
+        self.env.render()
 
     def close (self):
         #Close the environment
